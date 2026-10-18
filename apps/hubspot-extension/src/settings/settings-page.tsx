@@ -37,6 +37,7 @@ type ProviderSelection = LlmProviderType | "none";
 
 type DraftState = {
   signalProviders: {
+    parallelEnabled: boolean;
     exaEnabled: boolean;
     hubspotEnrichmentEnabled: boolean;
     exaApiKey: string;
@@ -129,6 +130,7 @@ function buildDraft(settings: SettingsResponse): DraftState {
 
   return {
     signalProviders: {
+      parallelEnabled: settings.signalProviders.parallel.enabled,
       exaEnabled: settings.signalProviders.exa.enabled,
       hubspotEnrichmentEnabled: settings.signalProviders.hubspotEnrichment.enabled,
       exaApiKey: "",
@@ -279,6 +281,7 @@ export function HubSpotSettingsPage({
 
     const update: SettingsUpdate = {
       signalProviders: {
+        parallel: { enabled: current.signalProviders.parallelEnabled },
         exa: exaLeaf,
         hubspotEnrichment: {
           enabled: current.signalProviders.hubspotEnrichmentEnabled,
@@ -335,6 +338,27 @@ export function HubSpotSettingsPage({
     <Flex direction="column" gap="md">
       <Heading>Signal Providers</Heading>
 
+      <Heading>Web research (Parallel)</Heading>
+      <Toggle
+        name="parallelEnabled"
+        label="Enable Parallel"
+        checked={draft.signalProviders.parallelEnabled}
+        onChange={(value) =>
+          setDraft((current) =>
+            current
+              ? {
+                  ...current,
+                  signalProviders: { ...current.signalProviders, parallelEnabled: value },
+                }
+              : current,
+          )
+        }
+      />
+      <Text>
+        No search API key required. Anonymous Parallel Search MCP has service quotas. HubSpot
+        connection and LLM setup are still required.
+      </Text>
+      <Divider />
       {/* Web research (Exa) */}
       <Heading>Web research (Exa)</Heading>
       <Toggle

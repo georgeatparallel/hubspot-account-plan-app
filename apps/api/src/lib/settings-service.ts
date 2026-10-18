@@ -4,6 +4,7 @@ import type {
   SettingsUpdate,
   ThresholdConfig,
 } from "@hap/config";
+import { hasSavedSearchConfiguration } from "@hap/config";
 import { type Database, llmConfig, providerConfig, tenants } from "@hap/db";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { DEFAULT_ELIGIBILITY_PROPERTY } from "../services/eligibility.js";
@@ -26,6 +27,7 @@ const MANAGED_SIGNAL_PROVIDERS = [
   { key: "exa", providerName: "exa" },
   { key: "hubspotEnrichment", providerName: "hubspot-enrichment" },
   { key: "trigify", providerName: "trigify" },
+  { key: "parallel", providerName: "parallel" },
 ] as const;
 
 const HUBSPOT_PROVIDER_NAME = "hubspot";
@@ -152,6 +154,12 @@ export async function readSettings(deps: SettingsServiceDeps): Promise<SettingsR
   return {
     tenantId,
     signalProviders: {
+      parallel: {
+        enabled:
+          rowByProvider.get("parallel")?.enabled ??
+          !hasSavedSearchConfiguration(rowByProvider.keys()),
+        hasApiKey: false,
+      },
       exa: {
         enabled: rowByProvider.get("exa")?.enabled ?? false,
         hasApiKey: !!rowByProvider.get("exa")?.apiKeyEncrypted,
@@ -287,10 +295,17 @@ export async function updateSettings(
         ...update.thresholds,
       };
 
+      const searchPatch = update.signalProviders;
+      const persistDefault =
+        !hasSavedSearchConfiguration(providerByName.keys()) &&
+        !searchPatch?.exa &&
+        !searchPatch?.trigify &&
+        !searchPatch?.parallel;
       for (const { providerName } of MANAGED_SIGNAL_PROVIDERS) {
         const existing = providerByName.get(providerName);
+        if (!existing && !(persistDefault && providerName === "parallel")) continue;
         await upsertSignalProvider(txDb, tenantId, providerName, {
-          enabled: existing?.enabled ?? false,
+          enabled: existing?.enabled ?? providerName === "parallel",
           apiKeyEncrypted: existing?.apiKeyEncrypted ?? null,
           thresholds: nextThresholds,
         });
@@ -298,6 +313,24 @@ export async function updateSettings(
     }
 
     if (update.signalProviders) {
+      const parallelPatch = update.signalProviders.parallel;
+      if (parallelPatch) {
+        if (Object.keys(parallelPatch).some((key) => key !== "enabled")) {
+          throw new SettingsValidationError("parallel accepts only enabled");
+        }
+        const existing = providerByName.get("parallel");
+        await upsertSignalProvider(txDb, tenantId, "parallel", {
+          enabled:
+            parallelPatch.enabled ??
+            existing?.enabled ??
+            !hasSavedSearchConfiguration(providerByName.keys()),
+          thresholds: {
+            ...DEFAULT_THRESHOLDS,
+            ...parseThresholds(existing?.thresholds),
+            ...update.thresholds,
+          },
+        });
+      }
       const exaPatch = update.signalProviders.exa;
       if (exaPatch) {
         const existing = providerByName.get("exa");

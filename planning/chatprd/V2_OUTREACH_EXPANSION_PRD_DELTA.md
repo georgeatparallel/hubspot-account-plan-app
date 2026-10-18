@@ -25,6 +25,20 @@ multi-stakeholder cross-referencing, ranked signals, settings copy/toggle fixes,
 500-credits+top-up confirmation) is NOT yet in the cloud docs — chatprd MCP needs
 re-auth. Sync §2d + the Pricing & Packaging additions when the connector is back.
 
+**PENDING ChatPRD + Magic Patterns sync (2026-10-18, Parallel provider decision):**
+The repo snapshot runtime adds anonymous Parallel Search MCP (`web_search` plus
+`web_fetch`) and an app-settings enable/disable toggle. Parallel is the default
+only with no saved Exa/Trigify/Parallel configuration; saved keys, choices and
+explicit disables are preserved. HubSpot OAuth and tenant LLM setup remain
+required. This affects the shipped snapshot provider boundary only, not the V2
+research/outreach workflow. Per `docs/HANDOFF.md` §4, cloud planning/design surfaces
+were unavailable in this contribution environment and are NOT claimed synced.
+When access is restored, sync the provider/default/disable decision to Technical
+Design, Feature Implementation Spec, QA, Implementation Plan and the Magic
+Patterns Providers & integrations settings design. Local task:
+`.claude/tasks/2026-10-18-parallel-search.md`; usage:
+`docs/runbooks/parallel-search.md`.
+
 ---
 
 ## 0. What is changing and why

@@ -134,3 +134,5 @@ Operational details live in:
 - `docs/security/slice-6-audit.md`
 
 See `planning/` for full product requirements and implementation plans.
+
+Public company snapshot search can use anonymous [Parallel Search MCP](docs/runbooks/parallel-search.md). HubSpot and LLM setup remain required; saved search-provider choices are preserved.

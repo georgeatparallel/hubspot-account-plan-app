@@ -12,6 +12,7 @@ const SETTINGS_WITH_KEY = {
   signalProviders: {
     exa: { enabled: true, hasApiKey: true },
     hubspotEnrichment: { enabled: true, hasApiKey: false },
+    parallel: { enabled: false, hasApiKey: false },
     trigify: { enabled: true, hasApiKey: true },
   },
   llm: { provider: "openai" as const, model: "gpt-5.4-mini", hasApiKey: true },
@@ -24,6 +25,7 @@ const SETTINGS_NO_TRIGIFY_KEY = {
   signalProviders: {
     exa: { enabled: true, hasApiKey: true },
     hubspotEnrichment: { enabled: true, hasApiKey: false },
+    parallel: { enabled: false, hasApiKey: false },
     trigify: { enabled: false, hasApiKey: false },
   },
 };

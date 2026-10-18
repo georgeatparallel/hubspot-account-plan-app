@@ -21,6 +21,8 @@ export type ProviderCompanyContext = {
   domain?: string;
 };
 
+export type ProviderFetchOptions = { signal?: AbortSignal };
+
 export interface ProviderAdapter {
   /** Stable identifier — used for logging, config lookup, and fixture names. */
   readonly name: string;
@@ -31,5 +33,9 @@ export interface ProviderAdapter {
    * Transport errors MAY throw; the caller (signals service in Slice 2)
    * catches and marks the snapshot `degraded`.
    */
-  fetchSignals(tenantId: string, company: ProviderCompanyContext): Promise<Evidence[]>;
+  fetchSignals(
+    tenantId: string,
+    company: ProviderCompanyContext,
+    options?: ProviderFetchOptions,
+  ): Promise<Evidence[]>;
 }

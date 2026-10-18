@@ -1034,6 +1034,17 @@
           }
         ],
         "updatedAt": "2026-04-15T19:55:40.828Z"
+      },
+      {
+        "id": "parallel",
+        "title": "Add anonymous Parallel Search MCP snapshot provider",
+        "description": "Retrieve public company evidence through the existing tenant-scoped snapshot runtime, preserving saved search configurations and disables.",
+        "details": "Official MCP SDK Streamable HTTP; tenant HubSpot company identity; default only without saved Exa/Trigify/Parallel config; anonymous settings toggle; bounded search/fetch and cancellation. Notes: .claude/tasks/2026-10-18-parallel-search.md; external sync pending in V2 delta header.",
+        "status": "in-progress",
+        "dependencies": [],
+        "priority": "medium",
+        "testStrategy": "TDD: HTTP MCP fixtures, actual POST route and resolver/factory/assembler, settings preservation, schemas and UI; lint, typecheck, build and full suite; independent exact-head review.",
+        "subtasks": []
       }
     ],
     "metadata": {

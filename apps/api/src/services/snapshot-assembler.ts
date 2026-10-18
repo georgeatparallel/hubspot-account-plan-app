@@ -81,6 +81,7 @@ export type AssembleSnapshotDeps = {
 export type AssembleSnapshotArgs = {
   tenantId: string;
   companyId: string;
+  signal?: AbortSignal;
 };
 
 export async function assembleSnapshot(
@@ -88,6 +89,7 @@ export async function assembleSnapshot(
   args: AssembleSnapshotArgs,
 ): Promise<Snapshot> {
   const { tenantId, companyId } = args;
+  args.signal?.throwIfAborted();
   const now = deps.now ?? new Date();
 
   // 1. Eligibility gate.
@@ -124,9 +126,12 @@ export async function assembleSnapshot(
   let signals: Evidence[] = [];
   let transportDegraded = false;
   try {
-    signals = await deps.providerAdapter.fetchSignals(tenantId, { companyId });
+    signals = args.signal
+      ? await deps.providerAdapter.fetchSignals(tenantId, { companyId }, { signal: args.signal })
+      : await deps.providerAdapter.fetchSignals(tenantId, { companyId });
+    args.signal?.throwIfAborted();
   } catch (err) {
-    if (err instanceof TenantAccessRevokedError) {
+    if (args.signal?.aborted || err instanceof TenantAccessRevokedError) {
       throw err;
     }
     // Transport error → mark degraded; continue with empty signal set.

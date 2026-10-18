@@ -10,9 +10,13 @@
  * inform ranking/trust.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PersistedSignalRow } from "../trigify";
 import { createTrigifyStoreAdapter, TRIGIFY_PROVIDER_NAME, TrigifyStoreAdapter } from "../trigify";
+
+// Ranking fixtures below are dated July 1; keep their intended freshness stable.
+beforeEach(() => vi.setSystemTime(new Date("2026-07-07T12:00:00Z")));
+afterEach(() => vi.useRealTimers());
 
 const TENANT_ID = "tenant-1";
 const COMPANY_ID = "co-99";

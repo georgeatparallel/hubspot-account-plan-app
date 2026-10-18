@@ -15,6 +15,7 @@ describe("settings schemas", () => {
         signalProviders: {
           exa: { enabled: true, hasApiKey: true },
           hubspotEnrichment: { enabled: true, hasApiKey: false },
+          parallel: { enabled: false, hasApiKey: false },
           trigify: { enabled: false, hasApiKey: false },
         },
         llm: {
@@ -41,6 +42,7 @@ describe("settings schemas", () => {
         signalProviders: {
           exa: { enabled: false, hasApiKey: false },
           hubspotEnrichment: { enabled: false, hasApiKey: false },
+          parallel: { enabled: false, hasApiKey: false },
           trigify: { enabled: true, hasApiKey: true },
         },
         llm: {
@@ -381,6 +383,18 @@ describe("testConnectionResponseSchema", () => {
         code: "teapot",
         message: "nope",
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe("anonymous Parallel settings", () => {
+  it("accepts an explicit enable/disable and rejects keys for the anonymous slot", () => {
+    expect(
+      settingsUpdateSchema.safeParse({ signalProviders: { parallel: { enabled: true } } }).success,
+    ).toBe(true);
+    expect(
+      settingsUpdateSchema.safeParse({ signalProviders: { parallel: { apiKey: "secret" } } })
+        .success,
     ).toBe(false);
   });
 });

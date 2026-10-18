@@ -122,6 +122,7 @@ describe("GET /api/settings", () => {
       signalProviders: {
         exa: { enabled: false, hasApiKey: false },
         hubspotEnrichment: { enabled: false, hasApiKey: false },
+        parallel: { enabled: true, hasApiKey: false },
         trigify: { enabled: false, hasApiKey: false },
       },
       llm: {
@@ -502,6 +503,7 @@ describe("PUT /api/settings", () => {
     expect(JSON.stringify(putBody)).not.toContain("trigify-secret-route");
     expect(putBody).toMatchObject({
       signalProviders: {
+        parallel: { enabled: false, hasApiKey: false },
         trigify: { enabled: true, hasApiKey: true },
       },
     });

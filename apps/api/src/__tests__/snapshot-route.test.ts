@@ -679,6 +679,7 @@ describe("POST /api/snapshot/:companyId", () => {
 
     it("an Exa-only tenant is unaffected by the Trigify composition change (regression)", async () => {
       const { portal, tenant } = await setupTenantWithLlm("Exa Only Regression Co");
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 503 }));
       await db.insert(providerConfig).values({
         tenantId: tenant.id,
         providerName: "exa",
@@ -699,8 +700,7 @@ describe("POST /api/snapshot/:companyId", () => {
 
       expect(res.status).toBe(200);
       const body = (await res.json()) as { eligibilityState: string };
-      // Exa's live network call will fail in this test environment (no real
-      // key), but the important regression assertion is that resolving the
+      // The deterministic Exa transport failure still proves that resolving the
       // adapter itself does not throw/short-circuit to unconfigured purely
       // because REAL_SIGNAL_PROVIDERS now also probes "trigify" — an
       // Exa-only tenant must still resolve its Exa adapter exactly as before.

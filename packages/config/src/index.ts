@@ -14,4 +14,5 @@ export * from "./domain-types.js";
 export * from "./env.js";
 export * from "./factories.js";
 export * from "./llm-catalog.js";
+export * from "./parallel-search.js";
 export * from "./trigify-signal-types.js";

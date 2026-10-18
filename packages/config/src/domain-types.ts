@@ -245,7 +245,7 @@ export type TenantConfig = {
  * `provider_config` row that `TrigifyStoreAdapter` and `services/trigify/poller.ts`
  * resolve at read/poll time.
  */
-export type SettingsSignalProviderName = "exa" | "hubspot-enrichment" | "trigify";
+export type SettingsSignalProviderName = "exa" | "hubspot-enrichment" | "trigify" | "parallel";
 
 /**
  * Presence-only provider settings state returned by the settings API.
@@ -265,6 +265,7 @@ export type SettingsProviderState = {
  * still use hyphenated names elsewhere when treated as scalar values.
  */
 export type SettingsSignalProviders = {
+  parallel: SettingsProviderState;
   exa: SettingsProviderState;
   hubspotEnrichment: SettingsProviderState;
   trigify: SettingsProviderState;
@@ -310,6 +311,8 @@ export type SettingsHubspotEnrichmentUpdate = {
 };
 
 export type SettingsSignalProviderUpdates = {
+  /** Anonymous Parallel MCP supports enable/disable only. */
+  parallel?: { enabled?: boolean };
   exa?: SettingsProviderUpdate;
   hubspotEnrichment?: SettingsHubspotEnrichmentUpdate;
   /** Same shape as `exa` — trigify is a real user-entered/rotatable API key. */

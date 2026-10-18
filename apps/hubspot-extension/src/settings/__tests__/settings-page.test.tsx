@@ -25,6 +25,7 @@ const VALID_SETTINGS = {
   signalProviders: {
     exa: { enabled: true, hasApiKey: true },
     hubspotEnrichment: { enabled: true, hasApiKey: false },
+    parallel: { enabled: false, hasApiKey: false },
     trigify: { enabled: false, hasApiKey: false },
   },
   llm: {
@@ -312,6 +313,7 @@ describe("HubSpotSettingsPage", () => {
       signalProviders: {
         exa: { enabled: true, apiKey: "exa-rotated" },
         hubspotEnrichment: { enabled: true },
+        parallel: { enabled: false },
         trigify: { enabled: false },
       },
       llm: {
@@ -416,6 +418,7 @@ describe("HubSpotSettingsPage", () => {
       signalProviders: {
         exa: { enabled: true },
         hubspotEnrichment: { enabled: true },
+        parallel: { enabled: false },
         trigify: { enabled: false },
       },
       llm: {
@@ -510,6 +513,7 @@ describe("HubSpotSettingsPage", () => {
       signalProviders: {
         exa: { enabled: true, hasApiKey: false },
         hubspotEnrichment: { enabled: true, hasApiKey: false },
+        parallel: { enabled: false, hasApiKey: false },
         trigify: { enabled: false, hasApiKey: false },
       },
       llm: {
@@ -787,6 +791,38 @@ describe("HubSpotSettingsPage", () => {
         .map((n) => n.text ?? "")
         .join(" ");
       expect(combined).toContain("55ms");
+    });
+  });
+});
+
+describe("Parallel settings control", () => {
+  it("shows an anonymous search toggle and sends an explicit disable without an API key", async () => {
+    const renderer = createRenderer("settings");
+    const fetchSettings = vi.fn(async () => ({
+      ...VALID_SETTINGS,
+      signalProviders: {
+        ...VALID_SETTINGS.signalProviders,
+        parallel: { enabled: true, hasApiKey: false },
+      },
+    }));
+    const updateSettings = vi.fn(async (_update: unknown) => undefined);
+    renderer.render(
+      <HubSpotSettingsPage fetchSettings={fetchSettings} updateSettings={updateSettings} />,
+    );
+    await renderer.waitFor(() =>
+      expect(renderer.find(Toggle, { name: "parallelEnabled" }).props.checked).toBe(true),
+    );
+    expect(
+      renderer
+        .findAll(Text)
+        .map((n) => n.text)
+        .join(" "),
+    ).toContain("No search API key");
+    triggerValue(renderer.find(Toggle, { name: "parallelEnabled" }), false);
+    renderer.find(LoadingButton).trigger("onClick");
+    await renderer.waitFor(() => expect(updateSettings).toHaveBeenCalled());
+    expect(updateSettings.mock.calls[0]?.[0]).toMatchObject({
+      signalProviders: { parallel: { enabled: false } },
     });
   });
 });

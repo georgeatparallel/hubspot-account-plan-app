@@ -9,6 +9,7 @@ const VALID_SETTINGS = {
   signalProviders: {
     exa: { enabled: true, hasApiKey: true },
     hubspotEnrichment: { enabled: true, hasApiKey: false },
+    parallel: { enabled: false, hasApiKey: false },
     trigify: { enabled: false, hasApiKey: false },
   },
   llm: { provider: "openai" as const, model: "gpt-5.4-mini", hasApiKey: true },

@@ -1,6 +1,7 @@
 import {
   createSnapshot,
   createStateFlags,
+  hasSavedSearchConfiguration,
   type LlmProviderConfig,
   type ProviderConfig,
   type ThresholdConfig,
@@ -13,6 +14,7 @@ import type { ProviderAdapter } from "../adapters/provider-adapter.js";
 import {
   createExaSignalAdapters,
   createSignalAdapter,
+  type SignalFactoryDeps,
   wrapSignalWithGuards,
 } from "../adapters/signal/factory.js";
 import { DEFAULT_THRESHOLDS, getLlmConfig, getProviderConfig } from "../lib/config-resolver.js";
@@ -61,8 +63,9 @@ function normalizeCompanyId(raw: string): string | null {
  * the upstream tenant middleware. Body-provided tenantIds are ignored and the
  * assembler re-stamps evidence with the middleware-resolved tenantId.
  *
- * Adapter resolution: if a tenant has no `llm_config` or no enabled
- * `provider_config` row (or adapter construction fails), the route
+ * Adapter resolution: missing LLM setup, all saved search providers disabled,
+ * or adapter construction failure means unconfigured. With no saved search
+ * configuration, anonymous Parallel is the default. The route
  * short-circuits with `eligibilityState: "unconfigured"` instead of silently
  * serving mock data. Mock adapters remain only in `__tests__/` fixtures.
  */
@@ -159,11 +162,11 @@ async function resolveLlmAdapter(
  *
  * `news` is not a top-level provider slot — it runs as a secondary adapter
  * driven by the Exa row via {@link createExaSignalAdapters}.
- * `hubspot-enrichment` stays out of this probe list because its factory
- * throws when tenant-scoped deps are missing; the snapshot path treats that
- * the same as "no config row".
+ * `hubspot-enrichment` remains outside this search-provider probe list.
+ * Parallel is synthesized only when all search-provider reads succeed and no
+ * saved row exists; an explicit disabled row prevents the default.
  */
-const REAL_SIGNAL_PROVIDERS = ["exa", "trigify"] as const;
+const REAL_SIGNAL_PROVIDERS = ["exa", "trigify", "parallel"] as const;
 
 /**
  * Successful signal resolution — contains the adapter plus per-provider
@@ -197,8 +200,12 @@ export function composeSignalAdapters(
 ): ProviderAdapter {
   return {
     name: compositeName,
-    async fetchSignals(tenantId, company) {
-      const results = await Promise.all(adapters.map((a) => a.fetchSignals(tenantId, company)));
+    async fetchSignals(tenantId, company, options) {
+      const results = await Promise.all(
+        adapters.map((a) =>
+          options ? a.fetchSignals(tenantId, company, options) : a.fetchSignals(tenantId, company),
+        ),
+      );
       return results.flat();
     },
   };
@@ -222,6 +229,7 @@ function buildWrappedSubAdapters(
   db: Database,
   tenantId: string,
   correlationId: string | undefined,
+  deps?: SignalFactoryDeps,
 ): ProviderAdapter[] {
   const guardCtx = {
     tenantId,
@@ -229,10 +237,10 @@ function buildWrappedSubAdapters(
     rateLimiter: getProcessRateLimiter(),
   };
   if (config.name === "exa") {
-    const subAdapters = createExaSignalAdapters(config, { db, tenantId });
+    const subAdapters = createExaSignalAdapters(config, { ...deps, db, tenantId });
     return subAdapters.map((sub) => wrapSignalWithGuards(sub, guardCtx));
   }
-  const real = createSignalAdapter(config, { db, tenantId });
+  const real = createSignalAdapter(config, { ...deps, db, tenantId });
   return [wrapSignalWithGuards(real, guardCtx)];
 }
 
@@ -258,27 +266,37 @@ function buildWrappedSubAdapters(
  * byte-identical eligibility behavior post-Task-7 (Exa's thresholds already
  * governed staleness/confidence gating before Trigify existed).
  */
-async function resolveSignalAdapter(
+export async function resolveSignalAdapter(
   db: Database,
   tenantId: string,
   correlationId: string | undefined,
+  deps?: SignalFactoryDeps,
 ): Promise<SignalResolution | null> {
   const enabledConfigs: ProviderConfig[] = [];
+  const savedProviders: string[] = [];
+  let resolutionFailed = false;
   for (const providerName of REAL_SIGNAL_PROVIDERS) {
     try {
       const cfg = await getProviderConfig({ db }, { tenantId, providerName });
+      if (cfg) savedProviders.push(providerName);
       if (cfg?.enabled) {
         enabledConfigs.push(cfg);
       }
     } catch {
-      // Resolver failure must not break the snapshot path — try the next
-      // provider; this one simply contributes nothing.
+      // An unreadable saved choice is not evidence of absent configuration.
+      resolutionFailed = true;
     }
   }
 
-  if (enabledConfigs.length === 0) {
-    return null;
+  if (!resolutionFailed && !hasSavedSearchConfiguration(savedProviders)) {
+    enabledConfigs.push({
+      name: "parallel",
+      enabled: true,
+      apiKeyRef: "",
+      thresholds: DEFAULT_THRESHOLDS,
+    });
   }
+  if (enabledConfigs.length === 0) return null;
 
   // Construction can throw — e.g., required tenant-scoped deps are missing,
   // or a provider config row has a non-null field that's nullable in the
@@ -291,7 +309,7 @@ async function resolveSignalAdapter(
 
   for (const config of enabledConfigs) {
     try {
-      const wrapped = buildWrappedSubAdapters(config, db, tenantId, correlationId);
+      const wrapped = buildWrappedSubAdapters(config, db, tenantId, correlationId, deps);
       if (wrapped.length === 0) continue;
       allSubAdapters.push(...wrapped);
       if (firstValidThresholds === undefined && isValidThresholds(config.thresholds)) {
@@ -467,7 +485,7 @@ snapshotRoutes.post("/:companyId", async (c) => {
         // one correlation ID in logs.
         correlationId,
       },
-      { tenantId, companyId },
+      { tenantId, companyId, signal: c.req.raw.signal },
     );
     return c.json(snapshot, 200);
   } catch (err) {

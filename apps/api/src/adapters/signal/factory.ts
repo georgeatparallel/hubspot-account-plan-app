@@ -32,10 +32,15 @@ import {
   type RateLimitConfig,
   type RateLimiter,
 } from "../../lib/rate-limiter.js";
-import type { ProviderAdapter, ProviderCompanyContext } from "../provider-adapter.js";
+import type {
+  ProviderAdapter,
+  ProviderCompanyContext,
+  ProviderFetchOptions,
+} from "../provider-adapter.js";
 import { ExaAdapter } from "./exa.js";
 import { HubSpotEnrichmentAdapter } from "./hubspot-enrichment.js";
 import { NewsAdapter } from "./news.js";
+import { ParallelAdapter } from "./parallel.js";
 import { createTrigifyStoreAdapter } from "./trigify.js";
 
 /** Optional constructor-injection hooks for tests and non-default wiring. */
@@ -83,6 +88,25 @@ export function createSignalAdapter(
         apiKey: config.apiKeyRef,
         fetch: fetchImpl,
       });
+    case "parallel": {
+      if (!deps?.tenantId) throw new Error("parallel requires tenantId");
+      const client =
+        deps.hubspotClient ??
+        (() => {
+          if (!deps.db) throw new Error("parallel requires tenant-scoped db");
+          return new HubSpotClient({
+            tenantId: deps.tenantId as string,
+            db: deps.db,
+            fetch: fetchImpl,
+          });
+        })();
+      return new ParallelAdapter({
+        tenantId: deps.tenantId,
+        client,
+        fetch: fetchImpl,
+        config: config.settings,
+      });
+    }
     case "hubspot-enrichment": {
       const client =
         deps?.hubspotClient ??
@@ -185,7 +209,11 @@ export function wrapSignalWithGuards(
 
   return {
     name: adapter.name,
-    async fetchSignals(tenantId: string, company: ProviderCompanyContext): Promise<Evidence[]> {
+    async fetchSignals(
+      tenantId: string,
+      company: ProviderCompanyContext,
+      options?: ProviderFetchOptions,
+    ): Promise<Evidence[]> {
       // Tenant binding: ctx.tenantId is the authoritative tenant (the wrapper
       // is built per-tenant in resolveSignalAdapter). The `tenantId` parameter
       // on the ProviderAdapter interface must match. We assert here because a
@@ -214,7 +242,9 @@ export function wrapSignalWithGuards(
         if (!allowed) {
           throw new SignalRateLimitedError(retryAfterMs ?? 0);
         }
-        return adapter.fetchSignals(ctx.tenantId, company);
+        return options
+          ? adapter.fetchSignals(ctx.tenantId, company, options)
+          : adapter.fetchSignals(ctx.tenantId, company);
       }, obsCtx);
     },
   };

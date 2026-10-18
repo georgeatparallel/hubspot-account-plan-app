@@ -62,6 +62,7 @@ describe("readSettings", () => {
       signalProviders: {
         exa: { enabled: false, hasApiKey: false },
         hubspotEnrichment: { enabled: false, hasApiKey: false },
+        parallel: { enabled: true, hasApiKey: false },
         trigify: { enabled: false, hasApiKey: false },
       },
       llm: {
@@ -493,5 +494,48 @@ describe("updateSettings", () => {
 
     const settings = await readSettings({ db, tenantId: tenant.id });
     expect((settings.signalProviders as Record<string, unknown>).news).toBeUndefined();
+  });
+});
+
+describe("Parallel defaults and settings preservation", () => {
+  it("shows anonymous Parallel by default, and retains that default across threshold-only writes", async () => {
+    const tenant = await seedTenant();
+    expect((await readSettings({ db, tenantId: tenant.id })).signalProviders.parallel).toEqual({
+      enabled: true,
+      hasApiKey: false,
+    });
+    await updateSettings({ db, tenantId: tenant.id }, { thresholds: { freshnessMaxDays: 7 } });
+    const settings = await readSettings({ db, tenantId: tenant.id });
+    expect(settings.signalProviders.parallel.enabled).toBe(true);
+    expect(settings.thresholds.freshnessMaxDays).toBe(7);
+    const rows = await db
+      .select()
+      .from(providerConfig)
+      .where(eq(providerConfig.tenantId, tenant.id));
+    expect(rows.map((r) => r.providerName)).toEqual(["parallel"]);
+    expect(rows[0]?.enabled).toBe(true);
+  });
+  it("can explicitly disable Parallel and preserves that choice during unrelated updates", async () => {
+    const tenant = await seedTenant();
+    await updateSettings(
+      { db, tenantId: tenant.id },
+      { signalProviders: { parallel: { enabled: false } } },
+    );
+    await updateSettings(
+      { db, tenantId: tenant.id },
+      { thresholds: { minConfidence: 0.6 }, eligibility: { propertyName: "hs_is_target_account" } },
+    );
+    expect((await readSettings({ db, tenantId: tenant.id })).signalProviders.parallel.enabled).toBe(
+      false,
+    );
+  });
+  it("does not show Parallel enabled when a legacy search provider has a saved disabled row", async () => {
+    const tenant = await seedTenant();
+    await db
+      .insert(providerConfig)
+      .values({ tenantId: tenant.id, providerName: "exa", enabled: false });
+    expect((await readSettings({ db, tenantId: tenant.id })).signalProviders.parallel.enabled).toBe(
+      false,
+    );
   });
 });

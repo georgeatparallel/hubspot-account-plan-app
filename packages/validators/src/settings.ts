@@ -18,6 +18,7 @@ export const settingsSignalProviderNameSchema = z.enum([
   "exa",
   "hubspot-enrichment",
   "trigify",
+  "parallel",
 ]) satisfies z.ZodType<SettingsSignalProviderName>;
 
 export const settingsProviderStateSchema = z
@@ -32,6 +33,7 @@ export const settingsResponseSchema = z
     tenantId: z.string().min(1),
     signalProviders: z
       .object({
+        parallel: settingsProviderStateSchema,
         exa: settingsProviderStateSchema,
         hubspotEnrichment: settingsProviderStateSchema,
         trigify: settingsProviderStateSchema,
@@ -189,6 +191,7 @@ export const settingsUpdateSchema = z
   .object({
     signalProviders: z
       .object({
+        parallel: hubspotEnrichmentUpdateSchema.optional(),
         exa: providerUpdateSchema.optional(),
         hubspotEnrichment: hubspotEnrichmentUpdateSchema.optional(),
         // Same shape/schema as exa — a real user-entered/rotatable key.
