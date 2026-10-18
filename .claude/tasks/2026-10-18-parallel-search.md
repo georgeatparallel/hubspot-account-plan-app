@@ -18,5 +18,3 @@ made deterministic to validate preservation. See `docs/runbooks/parallel-search.
 
 External planning/design synchronization is PENDING in the existing V2 delta
 header per `docs/HANDOFF.md`; this task makes no claim of cloud synchronization.
-Campaign controller owns independent reviews and helper-only publication. No
-merges, automatic pushes or outreach are authorized.
